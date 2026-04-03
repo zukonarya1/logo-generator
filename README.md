@@ -51,6 +51,32 @@ interface clean and the private design process private.
 prompt file (private)  →  generate_logo.py  →  output PNG (local)
 ```
 
+## Exporting production assets
+
+Once you have a 1024×1024 master PNG, use `export.py` to generate the full deployment
+asset set from it:
+
+```bash
+# Dark variant (favicons + PWA icons + transparent logo mark)
+python export.py --master /path/to/master-dark.png --variant dark --output /path/to/exports/
+
+# Light variant (light-bg PNG)
+python export.py --master /path/to/master-light.png --variant light --output /path/to/exports/
+```
+
+**dark variant produces:**
+- `favicon.ico` — 16×16 + 32×32 embedded, transparent background
+- `apple-touch-icon.png` — 180×180, solid background (iOS home screen)
+- `icon-192.png` — 192×192, solid background (Android PWA manifest)
+- `icon-512.png` — 512×512, solid background (Android PWA splash)
+- `logo-mark-512.png` — 512×512, transparent background
+
+**light variant produces:**
+- `logo-mark-light.png` — 512×512, transparent background
+
+Background removal uses luminance-based alpha blending. Solid black or white
+backgrounds are cleanly removed; anti-aliased stroke edges are preserved.
+
 ## Notes
 
 - Model: `gemini-3-pro-image-preview`
