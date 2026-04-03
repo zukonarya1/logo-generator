@@ -9,6 +9,7 @@ Usage:
 
 import os
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -54,6 +55,7 @@ def generate(prompt: str) -> Path:
     client = genai.Client(api_key=api_key)
 
     print(f"Generating with {MODEL}...")
+    start = time.time()
     response = client.models.generate_content(
         model=MODEL,
         contents=prompt,
@@ -65,12 +67,16 @@ def generate(prompt: str) -> Path:
             ),
         ),
     )
+    elapsed = time.time() - start
+    print(f"Response received in {elapsed:.1f}s")
 
     OUTPUT_DIR.mkdir(exist_ok=True)
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     output_path = OUTPUT_DIR / f"{timestamp}.png"
 
     for part in response.candidates[0].content.parts:
+        if part.text:
+            print(f"Model note: {part.text.strip()}")
         if part.inline_data is not None:
             image = part.as_image()
             image.save(output_path)
