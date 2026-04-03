@@ -5,6 +5,9 @@ generate_logo.py — Generate a logo PNG using the Gemini image generation API.
 Usage:
     python generate_logo.py "your prompt here"
     python generate_logo.py --file /path/to/prompt.txt
+
+When --file is used, outputs (PNG + model note) are saved alongside the prompt file.
+When a string prompt is used, outputs are saved to code/output/.
 """
 
 import os
@@ -23,7 +26,7 @@ OUTPUT_DIR = Path(__file__).parent / "output"
 MODEL = "gemini-3-pro-image-preview"
 
 
-def get_prompt() -> str:
+def get_prompt() -> tuple[str, Path | None]:
     args = sys.argv[1:]
 
     if "--file" in args:
@@ -35,10 +38,10 @@ def get_prompt() -> str:
         if not prompt_file.exists():
             print(f"Error: prompt file not found: {prompt_file}")
             sys.exit(1)
-        return prompt_file.read_text().strip()
+        return prompt_file.read_text().strip(), prompt_file
 
     if args:
-        return " ".join(args)
+        return " ".join(args), None
 
     print("Error: no prompt provided.")
     print('Usage: python generate_logo.py "your prompt here"')
@@ -46,7 +49,7 @@ def get_prompt() -> str:
     sys.exit(1)
 
 
-def generate(prompt: str) -> Path:
+def generate(prompt: str, prompt_file: Path | None) -> Path:
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         print("Error: GEMINI_API_KEY not set. Copy .env.example to .env and add your key.")
@@ -70,23 +73,34 @@ def generate(prompt: str) -> Path:
     elapsed = time.time() - start
     print(f"Response received in {elapsed:.1f}s")
 
-    OUTPUT_DIR.mkdir(exist_ok=True)
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    output_path = OUTPUT_DIR / f"{timestamp}.png"
+
+    if prompt_file is not None:
+        output_dir = prompt_file.parent
+        stem = prompt_file.stem
+        image_path = output_dir / f"{stem}_{timestamp}.png"
+        note_path = output_dir / f"{stem}_{timestamp}.txt"
+    else:
+        OUTPUT_DIR.mkdir(exist_ok=True)
+        image_path = OUTPUT_DIR / f"{timestamp}.png"
+        note_path = None
 
     for part in response.candidates[0].content.parts:
         if part.text:
             print(f"Model note: {part.text.strip()}")
+            if note_path:
+                note_path.write_text(part.text.strip())
         if part.inline_data is not None:
-            image = part.as_image()
-            image.save(output_path)
-            return output_path
+            part.as_image().save(image_path)
 
-    print("Error: no image returned in response.")
-    sys.exit(1)
+    if not image_path.exists():
+        print("Error: no image returned in response.")
+        sys.exit(1)
+
+    return image_path
 
 
 if __name__ == "__main__":
-    prompt = get_prompt()
-    output_path = generate(prompt)
-    print(f"Saved: {output_path}")
+    prompt, prompt_file = get_prompt()
+    image_path = generate(prompt, prompt_file)
+    print(f"Saved: {image_path}")
