@@ -4,7 +4,7 @@ generate_logo.py — Generate a logo PNG using the Gemini image generation API.
 
 Usage:
     python generate_logo.py "your prompt here"
-    python generate_logo.py               # reads from prompts/default.txt
+    python generate_logo.py --file /path/to/prompt.txt
 """
 
 import os
@@ -19,18 +19,29 @@ from google.genai import types
 load_dotenv()
 
 OUTPUT_DIR = Path(__file__).parent / "output"
-PROMPTS_DIR = Path(__file__).parent / "prompts"
 MODEL = "gemini-3-pro-image-preview"
 
 
 def get_prompt() -> str:
-    if len(sys.argv) > 1:
-        return " ".join(sys.argv[1:])
-    default_prompt_file = PROMPTS_DIR / "default.txt"
-    if default_prompt_file.exists():
-        return default_prompt_file.read_text().strip()
-    print("Error: no prompt provided and prompts/default.txt not found.")
-    print("Usage: python generate_logo.py \"your prompt here\"")
+    args = sys.argv[1:]
+
+    if "--file" in args:
+        idx = args.index("--file")
+        if idx + 1 >= len(args):
+            print("Error: --file requires a path argument.")
+            sys.exit(1)
+        prompt_file = Path(args[idx + 1])
+        if not prompt_file.exists():
+            print(f"Error: prompt file not found: {prompt_file}")
+            sys.exit(1)
+        return prompt_file.read_text().strip()
+
+    if args:
+        return " ".join(args)
+
+    print("Error: no prompt provided.")
+    print('Usage: python generate_logo.py "your prompt here"')
+    print("       python generate_logo.py --file /path/to/prompt.txt")
     sys.exit(1)
 
 
