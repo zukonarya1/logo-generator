@@ -1,6 +1,16 @@
-# Logo Generator
+# logo-generator
 
-A Python script that generates logo images using the Google Gemini image generation API.
+A focused Python module that generates logo images via the Google Gemini image generation API.
+
+This is the execution layer of a two-part system. It accepts a prompt file as input and
+produces a timestamped PNG as output. It has no knowledge of brand, project, or design
+intent — those live in a separate private configuration layer.
+
+## What this does
+
+- Reads a prompt from a file path or CLI argument
+- Calls `gemini-3-pro-image-preview` via the `google-genai` SDK
+- Saves output as `output/YYYY-MM-DD_HH-MM-SS.png`
 
 ## Requirements
 
@@ -17,23 +27,32 @@ cp .env.example .env
 
 ## Usage
 
-Pass a prompt as a CLI argument:
+Pass a prompt directly:
 
 ```bash
-python generate_logo.py "A minimal vector hourglass logo mark, purple to pink gradient"
+python generate_logo.py "A minimal flat vector hourglass icon, purple to pink gradient"
 ```
 
-Or write your prompt to `prompts/default.txt` and run without arguments:
+Or point at a prompt file (recommended for iterative work):
 
 ```bash
-python generate_logo.py
+python generate_logo.py --file /path/to/your/prompt.txt
 ```
 
-Output is saved to `output/YYYY-MM-DD_HH-MM-SS.png`.
+Output is saved to `output/` with a timestamp. Previous outputs are never overwritten.
+
+## Design
+
+The module is intentionally stateless. It does not store prompts, track iterations, or
+know anything about the logo project it is serving. That separation keeps the public
+interface clean and the private design process private.
+
+```
+prompt file (private)  →  generate_logo.py  →  output PNG (local)
+```
 
 ## Notes
 
 - Model: `gemini-3-pro-image-preview`
 - Output: 1024×1024px PNG (1:1 aspect ratio)
-- Each run creates a new timestamped file — previous outputs are never overwritten
-- The `output/` directory is gitignored
+- The `output/` directory is gitignored — generated images stay local
