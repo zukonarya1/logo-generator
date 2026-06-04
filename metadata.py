@@ -26,7 +26,7 @@ def parse_header(content: str) -> tuple[dict, str]:
 
 def write_output_metadata(file_path: Path, output_path: Path, timestamp: datetime) -> None:
     content = file_path.read_text()
-    if "---" not in content:
+    if "---\n" not in content:
         return
     ts_str = timestamp.strftime("%Y-%m-%dT%H:%M:%S")
     new_lines = f"# output: {output_path.name}\n# timestamp: {ts_str}\n"
