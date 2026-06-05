@@ -5,6 +5,9 @@ from openai import OpenAI
 
 
 def generate(prompt: str, images: list[Path]) -> bytes:
+    if not images:
+        raise ValueError("OpenAI images.edit requires at least one image.")
+
     client = OpenAI()  # reads OPENAI_API_KEY from env
 
     handles = [open(path, "rb") for path in images]
