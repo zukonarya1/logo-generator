@@ -16,7 +16,7 @@ def generate(prompt: str, images: list[Path]) -> bytes:
             model="gpt-image-2",
             image=handles if len(handles) > 1 else handles[0],
             prompt=prompt,
-            format="png",
+            output_format="png",
         )
     finally:
         for h in handles:
