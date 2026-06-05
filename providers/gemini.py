@@ -18,7 +18,7 @@ _MIME_TYPES: dict[str, str] = {
 
 
 def generate(prompt: str, images: list[Path]) -> bytes:
-    client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
     if images:
         contents = [

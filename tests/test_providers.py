@@ -1,4 +1,5 @@
 import io
+import os
 import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch, call
@@ -26,6 +27,7 @@ def _make_gemini_response(image_bytes: bytes, text: str = "") -> MagicMock:
     return response
 
 
+@patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"})
 @patch("providers.gemini.genai.Client")
 def test_gemini_text_only_passes_string_contents(mock_client_cls, tmp_path):
     mock_client = mock_client_cls.return_value
@@ -39,6 +41,7 @@ def test_gemini_text_only_passes_string_contents(mock_client_cls, tmp_path):
     assert isinstance(result, bytes)
 
 
+@patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"})
 @patch("providers.gemini.genai.Client")
 def test_gemini_with_images_passes_list_contents(mock_client_cls, tmp_path):
     mock_client = mock_client_cls.return_value
@@ -58,6 +61,7 @@ def test_gemini_with_images_passes_list_contents(mock_client_cls, tmp_path):
     assert isinstance(result, bytes)
 
 
+@patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"})
 @patch("providers.gemini.genai.Client")
 def test_gemini_raises_on_no_image_in_response(mock_client_cls):
     mock_client = mock_client_cls.return_value
