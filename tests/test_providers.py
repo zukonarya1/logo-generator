@@ -126,3 +126,64 @@ def test_fal_passes_prompt_in_arguments(mock_fal, tmp_path):
 
     args = mock_fal.subscribe.call_args[1]["arguments"]
     assert args["prompt"] == "My prompt text"
+
+
+import base64
+
+# ── OpenAI ───────────────────────────────────────────────────────────────────
+
+@patch("providers.openai_provider.OpenAI")
+def test_openai_calls_images_edit_with_file_objects(mock_openai_cls, tmp_path):
+    img = tmp_path / "shot.png"
+    img.write_bytes(b"fake_png")
+
+    raw = b"OUTPUT_PNG_BYTES"
+    mock_client = mock_openai_cls.return_value
+    mock_result = MagicMock()
+    mock_result.data[0].b64_json = base64.b64encode(raw).decode()
+    mock_client.images.edit.return_value = mock_result
+
+    from providers.openai_provider import generate
+    result = generate("A marketing prompt", [img])
+
+    call_kwargs = mock_client.images.edit.call_args.kwargs
+    assert call_kwargs["model"] == "gpt-image-2"
+    assert call_kwargs["prompt"] == "A marketing prompt"
+    assert result == raw
+
+
+@patch("providers.openai_provider.OpenAI")
+def test_openai_passes_list_for_multiple_images(mock_openai_cls, tmp_path):
+    img_a = tmp_path / "a.png"
+    img_b = tmp_path / "b.png"
+    img_a.write_bytes(b"fake")
+    img_b.write_bytes(b"fake")
+
+    raw = b"OUTPUT"
+    mock_client = mock_openai_cls.return_value
+    mock_result = MagicMock()
+    mock_result.data[0].b64_json = base64.b64encode(raw).decode()
+    mock_client.images.edit.return_value = mock_result
+
+    from providers.openai_provider import generate
+    generate("prompt", [img_a, img_b])
+
+    call_kwargs = mock_client.images.edit.call_args.kwargs
+    assert isinstance(call_kwargs["image"], list)
+    assert len(call_kwargs["image"]) == 2
+
+
+@patch("providers.openai_provider.OpenAI")
+def test_openai_returns_decoded_bytes(mock_openai_cls, tmp_path):
+    img = tmp_path / "shot.png"
+    img.write_bytes(b"fake")
+
+    raw = b"\x89PNG\r\n"
+    mock_client = mock_openai_cls.return_value
+    mock_result = MagicMock()
+    mock_result.data[0].b64_json = base64.b64encode(raw).decode()
+    mock_client.images.edit.return_value = mock_result
+
+    from providers.openai_provider import generate
+    result = generate("prompt", [img])
+    assert result == raw
