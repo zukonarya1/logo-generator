@@ -1,106 +1,120 @@
 #!/usr/bin/env python3
-"""
-generate_logo.py — Generate a logo PNG using the Gemini image generation API.
-
-Usage:
-    python generate_logo.py "your prompt here"
-    python generate_logo.py --file /path/to/prompt.txt
-
-When --file is used, outputs (PNG + model note) are saved alongside the prompt file.
-When a string prompt is used, outputs are saved to code/output/.
-"""
-
-import os
 import sys
 import time
 from datetime import datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
-from google import genai
-from google.genai import types
+
+from metadata import parse_header, write_output_metadata
+from providers import resolve_provider
+from validation import get_api_key, validate_images
 
 load_dotenv()
 
 OUTPUT_DIR = Path(__file__).parent / "output"
-MODEL = "gemini-3-pro-image-preview"
 
 
-def get_prompt() -> tuple[str, Path | None]:
-    args = sys.argv[1:]
+def parse_args():
+    import argparse
 
-    if "--file" in args:
-        idx = args.index("--file")
-        if idx + 1 >= len(args):
-            print("Error: --file requires a path argument.")
-            sys.exit(1)
-        prompt_file = Path(args[idx + 1])
-        if not prompt_file.exists():
-            print(f"Error: prompt file not found: {prompt_file}")
-            sys.exit(1)
-        return prompt_file.read_text().strip(), prompt_file
-
-    if args:
-        return " ".join(args), None
-
-    print("Error: no prompt provided.")
-    print('Usage: python generate_logo.py "your prompt here"')
-    print("       python generate_logo.py --file /path/to/prompt.txt")
-    sys.exit(1)
-
-
-def generate(prompt: str, prompt_file: Path | None) -> Path:
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        print("Error: GEMINI_API_KEY not set. Copy .env.example to .env and add your key.")
-        sys.exit(1)
-
-    client = genai.Client(api_key=api_key)
-
-    print(f"Generating with {MODEL}...")
-    start = time.time()
-    response = client.models.generate_content(
-        model=MODEL,
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_modalities=["TEXT", "IMAGE"],
-            image_config=types.ImageConfig(
-                aspect_ratio="1:1",
-                image_size="1K",
-            ),
-        ),
+    parser = argparse.ArgumentParser(
+        description="Generate images using Gemini, fal.ai, or OpenAI.",
     )
+    parser.add_argument(
+        "--provider",
+        choices=["gemini", "fal", "openai"],
+        help="Image generation provider (default: gemini, or from prompt file header)",
+    )
+    parser.add_argument(
+        "--file",
+        type=Path,
+        metavar="FILE",
+        help="Path to a prompt text file",
+    )
+    parser.add_argument(
+        "--image",
+        type=Path,
+        action="append",
+        default=[],
+        dest="images",
+        metavar="PATH",
+        help="Reference image path (repeatable)",
+    )
+    parser.add_argument(
+        "prompt",
+        nargs="?",
+        help="Inline prompt text (mutually exclusive with --file)",
+    )
+
+    args = parser.parse_args()
+
+    if args.file and args.prompt:
+        parser.error("--file and inline prompt are mutually exclusive.")
+    if not args.file and not args.prompt:
+        parser.error("Provide a prompt string or --file PATH.")
+
+    return args
+
+
+def resolve_config(args):
+    header = {}
+    prompt_text = args.prompt or ""
+    prompt_file = None
+
+    if args.file:
+        if not args.file.exists():
+            print(f"Error: prompt file not found: {args.file}")
+            sys.exit(1)
+        content = args.file.read_text()
+        header, prompt_text = parse_header(content)
+        prompt_file = args.file
+
+    provider = args.provider or header.get("provider", "gemini")
+
+    if args.images:
+        images = args.images
+    elif "images" in header:
+        base = args.file.parent if args.file else Path(".")
+        images = [base / p.strip() for p in header["images"].split(",")]
+    else:
+        images = []
+
+    return provider, images, prompt_text, prompt_file
+
+
+def build_output_path(prompt_file: Path | None, provider: str, timestamp: str) -> Path:
+    if prompt_file is not None:
+        return prompt_file.parent / f"{prompt_file.stem}_{provider}_{timestamp}.png"
+    OUTPUT_DIR.mkdir(exist_ok=True)
+    return OUTPUT_DIR / f"{provider}_{timestamp}.png"
+
+
+def main():
+    args = parse_args()
+    provider_name, images, prompt, prompt_file = resolve_config(args)
+
+    validate_images(images, provider_name)
+    get_api_key(provider_name)
+
+    generate_fn = resolve_provider(provider_name)
+
+    print(f"Generating with {provider_name}...")
+    start = time.time()
+    image_bytes = generate_fn(prompt, images)
     elapsed = time.time() - start
     print(f"Response received in {elapsed:.1f}s")
 
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    now = datetime.now()
+    timestamp = now.strftime("%Y-%m-%d_%H-%M-%S")
+    output_path = build_output_path(prompt_file, provider_name, timestamp)
+    output_path.write_bytes(image_bytes)
 
-    if prompt_file is not None:
-        output_dir = prompt_file.parent
-        stem = prompt_file.stem
-        image_path = output_dir / f"{stem}_{timestamp}.png"
-        note_path = output_dir / f"{stem}_{timestamp}.txt"
-    else:
-        OUTPUT_DIR.mkdir(exist_ok=True)
-        image_path = OUTPUT_DIR / f"{timestamp}.png"
-        note_path = None
+    if prompt_file:
+        write_output_metadata(prompt_file, output_path, now)
 
-    for part in response.candidates[0].content.parts:
-        if part.text:
-            print(f"Model note: {part.text.strip()}")
-            if note_path:
-                note_path.write_text(part.text.strip())
-        if part.inline_data is not None:
-            part.as_image().save(image_path)
-
-    if not image_path.exists():
-        print("Error: no image returned in response.")
-        sys.exit(1)
-
-    return image_path
+    print(f"Saved: {output_path}")
 
 
 if __name__ == "__main__":
-    prompt, prompt_file = get_prompt()
-    image_path = generate(prompt, prompt_file)
-    print(f"Saved: {image_path}")
+    main()

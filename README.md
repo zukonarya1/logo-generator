@@ -27,19 +27,35 @@ cp .env.example .env
 
 ## Usage
 
-Pass a prompt directly:
-
-```bash
-python generate_logo.py "A minimal flat vector hourglass icon, purple to pink gradient"
+```
+python generate_logo.py [--provider PROVIDER] "your prompt here"
+python generate_logo.py [--provider PROVIDER] --file /path/to/prompt.txt [--image PATH ...]
 ```
 
-Or point at a prompt file (recommended for iterative work):
+Providers: gemini (default), fal, openai
 
-```bash
-python generate_logo.py --file /path/to/your/prompt.txt
-```
+Examples:
+  # Text-only (existing workflow — unchanged)
+  python generate_logo.py --file brain/projects/my-project/active.txt
 
-Output is saved to `output/` with a timestamp. Previous outputs are never overwritten.
+  # Gemini with one reference image
+  python generate_logo.py --provider gemini --file prompt.txt --image screenshot.png
+
+  # fal.ai with two reference images
+  python generate_logo.py --provider fal --file prompt.txt --image ui.png --image brand.png
+
+  # OpenAI
+  python generate_logo.py --provider openai --file prompt.txt --image ui.png
+
+  # Re-run a version using its header defaults (provider + images recorded automatically)
+  python generate_logo.py --file sessions/01-exploration/v01.txt
+
+## Secrets
+
+Copy .env.example to .env and fill in the key(s) for the provider(s) you use.
+Only the key for the selected provider needs to be set.
+
+Output is saved alongside the prompt file (or `output/` for inline prompts). Previous outputs are never overwritten.
 
 ## Design
 
