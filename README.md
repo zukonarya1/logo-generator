@@ -55,6 +55,8 @@ Examples:
 Copy .env.example to .env and fill in the key(s) for the provider(s) you use.
 Only the key for the selected provider needs to be set.
 
+Output is saved alongside the prompt file (or `output/` for inline prompts). Previous outputs are never overwritten.
+
 ## Design
 
 The module is intentionally stateless. It does not store prompts, track iterations, or
