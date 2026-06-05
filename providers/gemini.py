@@ -1,4 +1,3 @@
-import io
 import os
 from pathlib import Path
 
@@ -47,8 +46,6 @@ def generate(prompt: str, images: list[Path]) -> bytes:
         if part.text:
             print(f"Model note: {part.text.strip()}")
         if part.inline_data is not None:
-            buf = io.BytesIO()
-            part.as_image().save(buf, format="PNG")
-            return buf.getvalue()
+            return part.inline_data.data
 
     raise RuntimeError("No image returned in Gemini response.")

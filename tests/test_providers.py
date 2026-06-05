@@ -12,11 +12,7 @@ def _make_gemini_response(image_bytes: bytes, text: str = "") -> MagicMock:
     image_part = MagicMock()
     image_part.text = None
     image_part.inline_data = MagicMock()
-    pil_image = MagicMock()
-    def save_to_buf(buf, format):
-        buf.write(image_bytes)
-    pil_image.save.side_effect = save_to_buf
-    image_part.as_image.return_value = pil_image
+    image_part.inline_data.data = image_bytes
 
     text_part = MagicMock()
     text_part.text = text
