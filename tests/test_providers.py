@@ -75,3 +75,54 @@ def test_gemini_raises_on_no_image_in_response(mock_client_cls):
     from providers.gemini import generate
     with pytest.raises(RuntimeError, match="No image returned"):
         generate("prompt", [])
+
+
+# ── fal.ai ──────────────────────────────────────────────────────────────────
+
+@patch("providers.fal.fal_client")
+def test_fal_uploads_each_image_and_calls_subscribe(mock_fal, tmp_path):
+    img_a = tmp_path / "a.png"
+    img_b = tmp_path / "b.png"
+    img_a.write_bytes(b"fake")
+    img_b.write_bytes(b"fake")
+
+    mock_fal.upload_file.side_effect = ["https://cdn.fal/a.png", "https://cdn.fal/b.png"]
+    mock_fal.subscribe.return_value = {
+        "images": [{"url": "https://cdn.fal/output.png"}]
+    }
+
+    import urllib.request
+    with patch("urllib.request.urlopen") as mock_urlopen:
+        mock_urlopen.return_value.__enter__ = lambda s: s
+        mock_urlopen.return_value.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value.read.return_value = b"OUTPUT_PNG_BYTES"
+
+        from providers.fal import generate
+        result = generate("A marketing prompt", [img_a, img_b])
+
+    assert mock_fal.upload_file.call_count == 2
+    subscribe_kwargs = mock_fal.subscribe.call_args
+    assert subscribe_kwargs[0][0] == "fal-ai/flux-2-pro/edit"
+    assert "https://cdn.fal/a.png" in subscribe_kwargs[1]["arguments"]["image_urls"]
+    assert "https://cdn.fal/b.png" in subscribe_kwargs[1]["arguments"]["image_urls"]
+    assert result == b"OUTPUT_PNG_BYTES"
+
+
+@patch("providers.fal.fal_client")
+def test_fal_passes_prompt_in_arguments(mock_fal, tmp_path):
+    mock_fal.upload_file.return_value = "https://cdn.fal/a.png"
+    mock_fal.subscribe.return_value = {"images": [{"url": "https://cdn.fal/out.png"}]}
+
+    img = tmp_path / "a.png"
+    img.write_bytes(b"fake")
+
+    with patch("urllib.request.urlopen") as mock_urlopen:
+        mock_urlopen.return_value.__enter__ = lambda s: s
+        mock_urlopen.return_value.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value.read.return_value = b"bytes"
+
+        from providers.fal import generate
+        generate("My prompt text", [img])
+
+    args = mock_fal.subscribe.call_args[1]["arguments"]
+    assert args["prompt"] == "My prompt text"
