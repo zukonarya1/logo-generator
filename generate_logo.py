@@ -23,7 +23,7 @@ def parse_args():
     )
     parser.add_argument(
         "--provider",
-        choices=["gemini", "fal", "openai"],
+        choices=["gemini", "fal", "openai", "composite"],
         help="Image generation provider (default: gemini, or from prompt file header)",
     )
     parser.add_argument(

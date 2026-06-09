@@ -6,6 +6,7 @@ SUPPORTED_EXTENSIONS: dict[str, set[str]] = {
     "gemini": {".png", ".jpg", ".jpeg", ".webp", ".heic", ".heif"},
     "fal":    {".png", ".jpg", ".jpeg"},
     "openai": {".png", ".jpg", ".jpeg", ".webp"},
+    "composite": {".png", ".jpg", ".jpeg", ".webp"},
 }
 
 API_KEY_VARS: dict[str, str] = {
@@ -30,6 +31,8 @@ def validate_images(images: list[Path], provider: str) -> None:
 
 
 def get_api_key(provider: str) -> str:
+    if provider not in API_KEY_VARS:
+        return ""
     var = API_KEY_VARS[provider]
     key = os.environ.get(var)
     if not key:

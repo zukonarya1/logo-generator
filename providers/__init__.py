@@ -1,6 +1,6 @@
 import sys
 
-VALID_PROVIDERS = ["gemini", "fal", "openai"]
+VALID_PROVIDERS = ["gemini", "fal", "openai", "composite"]
 
 
 def resolve_provider(name: str):
@@ -13,4 +13,6 @@ def resolve_provider(name: str):
         from .fal import generate
     elif name == "openai":
         from .openai_provider import generate
+    elif name == "composite":
+        from .composite import generate
     return generate
